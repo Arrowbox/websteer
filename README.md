@@ -6,7 +6,7 @@ have ambiguous names that will show a prompt.
 
 ## Usage
 
-`websteer [-c config] [-d kdialog|zenity] [url]`
+`websteer open [-c config] [-d kdialog|zenity] [url]`
 `websteer gen-config [path]`
 `websteer gen-desktop [path]`
 
@@ -53,41 +53,33 @@ xdg-settings set default-web-browser websteer.desktop
 .config/websteer/config
 
 ```
-dialog=kdialog
-default=personal
-prompt=[personal, work]
+dialog: kdialog
+default: personal
+prompt:
+    - personal
+    - work
 
-[[browser]]
-name=personal
-desktop=person-browser.desktop
-exec="/usr/bin/personal-browser"
+browser:
+    personal:
+        name: "Personal Browser"
+        desktop: personal-browser.desktop
+    work:
+        name: "Work Browser"
+        exec: "/usr/bin/personal-browser --various --args=foo"
+    test:
+        name: "Test Browser"
+        exec: "/usr/bin/other-browser"
 
-[[browser]]
-name=work
-desktop=work-browser.desktop
-exec="/usr/bin/personal-browser --various --args=foo"
-
-[[browser]]
-name=test
-desktop=test-browser.desktop
-exec="/usr/bin/other-browser"
-
-[[rule]]
-regex="localhost"
-browser=test
-
-[[rule]]
-regex="workcorp"
-browser=work
-
-[[rule]]
-regex="drive\.google\.com"
-browser=work
-ambiguous=true
-
-[[rule]]
-regex="facebook\.com"
-browser=personal
+rule:
+    - regex: localhost
+      browser: test
+    - regex: workcorp
+      browser: work
+    - regex: "drive\.google\.com"
+      browser: work
+      ambiguous: true
+    - regex: "facebook\.com"
+      browser: personal
 ```
 
 * `dialog`: Dialog format. `kdialog` and `zenity` are allowed. Otherwise attempt to default based on gnome/kde
