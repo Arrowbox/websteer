@@ -6,20 +6,7 @@ use anyhow::{anyhow, Result};
 use dirs::config_dir;
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize)]
-pub enum ExecConfig {
-    #[serde(rename = "desktop")]
-    Desktop(String),
-    #[serde(rename = "exec")]
-    Exec(String),
-}
-
-#[derive(Debug, Deserialize)]
-pub struct BrowserConfig {
-    pub name: String,
-    #[serde(flatten)]
-    pub launcher: ExecConfig,
-}
+use crate::browser::{Browser, Executable};
 
 #[derive(Debug, Deserialize)]
 pub struct RuleConfig {
@@ -34,11 +21,11 @@ fn default_ambiguous() -> bool {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Config {
-    pub dialog: String,
-    pub default: String,
-    pub prompt: Vec<String>,
-    pub browser: HashMap<String, BrowserConfig>,
+pub struct Config<'cfg> {
+    pub dialog: &'cfg str,
+    pub default: &'cfg str,
+    pub prompt: Vec<&'cfg str>,
+    pub browser: HashMap<&'cfg str, Browser<'cfg>>,
     pub rule: Vec<RuleConfig>,
 }
 

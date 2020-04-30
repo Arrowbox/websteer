@@ -4,22 +4,22 @@ use regex::Regex;
 use crate::config::RuleConfig;
 
 pub struct Rule<'a> {
-    regex: Regex,
+    regex: &'a str,
     browser: &'a str,
     ambiguous: bool,
 }
 
 impl<'a> Rule<'a> {
-    pub fn new(browser: &'a str, regex: &str, ambiguous: bool) -> Rule<'a> {
+    pub fn new(browser: &'a str, regex: &'a str, ambiguous: bool) -> Rule<'a> {
         Rule {
-            regex: Regex::new(regex).unwrap(),
+            regex,
             browser,
             ambiguous,
         }
     }
 
     pub fn compare(&self, url: &str) -> Result<(&'a str, bool)> {
-        if self.regex.is_match(url) {
+        if Regex::new(self.regex)?.is_match(url) {
             Ok((self.browser, self.ambiguous))
         } else {
             Err(anyhow!("No match"))

@@ -1,57 +1,32 @@
 use anyhow::{anyhow, bail, Result};
+use dirs;
 
+use std::path;
+use std::path::PathBuf;
 use std::collections::HashMap;
 use std::process::{Command, Stdio};
+use serde::Deserialize;
 
 use crate::config::{BrowserConfig, ExecConfig};
 
-#[derive(Debug, PartialEq)]
-enum Executable<'a> {
-    Desktop(&'a str),
-    Exec(&'a str),
+#[derive(Debug, PartialEq, Deserialize)]
+#[serde(untagged)]
+pub enum Executable<'cfg> {
+    Desktop { desktop: &'cfg str),
+    Exec {
+        exec: &'cfg str,
+        args: Option<Vec<&'cfg str>>,
+    },
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Deserialize)]
 pub struct Browser<'a> {
     pub name: &'a str,
-    launcher: Executable<'a>,
+    #[serde(flatten)]
+    pub launcher: Executable<'a>,
 }
 
 impl<'a> Browser<'a> {
-    pub fn new(
-        name: &'a str,
-        desktop: Option<&'a str>,
-        exec: Option<&'a str>,
-    ) -> Result<Browser<'a>> {
-        let launcher = if let Some(d) = desktop {
-            Executable::Desktop(d)
-        } else if let Some(e) = exec {
-            Executable::Exec(e)
-        } else {
-            bail!("Must have desktop or exec")
-        };
-
-        Ok(Browser { name, launcher })
-    }
-
-    pub fn from_desktop(name: &'a str, desktop: &'a str) -> Browser<'a> {
-        Browser::new(name, Some(desktop), None).unwrap()
-    }
-
-    pub fn from_exec(name: &'a str, exec: &'a str) -> Browser<'a> {
-        Browser::new(name, None, Some(exec)).unwrap()
-    }
-
-    pub fn from_config(conf: &'a BrowserConfig) -> Browser<'a> {
-        Browser {
-            name: &conf.name,
-            launcher: match &conf.launcher {
-                ExecConfig::Desktop(d) => Executable::Desktop(&d),
-                ExecConfig::Exec(d) => Executable::Exec(&d),
-            },
-        }
-    }
-
     fn args(&self) -> Vec<&str> {
         match &self.launcher {
             Executable::Desktop(d) => vec!["gtk-launch", d],
@@ -60,14 +35,17 @@ impl<'a> Browser<'a> {
     }
 
     fn run(&self, url: Option<&str>) -> Result<()> {
-        let mut args = self.args();
 
-        if let Some(u) = url {
-            args.push(u);
-        }
+        let args = match &self.launcher {
+            Executable::Desktop { desktop: d} => vec![d],
+            Executable::Exec { exec: _, args: a } => a.unwrap_or(vec![]),
+        }.extend(url.unwrap_or(vec![]))
 
-        let status = Command::new(&args[0])
-            .args(&args[1..])
+        let status = Command::new(match &self.launcher {
+            Executable::Desktop { desktop: _ } => "gtk-launch",
+            Executable::Exec { exec: e } => e,
+        })
+            .args(args)
             .stdout(Stdio::null())
             .status()
             .expect("Failed to run command");
@@ -88,14 +66,57 @@ impl<'a> Browser<'a> {
     }
 }
 
-pub fn generate<'a>(browsers: &'a HashMap<String, BrowserConfig>) -> HashMap<String, Browser<'a>> {
-    let mut bmap: HashMap<String, Browser<'a>> = HashMap::new();
-    browsers.iter().for_each(|(key, bc)| {
-        bmap.insert(key.to_owned(), Browser::from_config(&bc));
-    });
+trait Launcher {
+    pub fn launch(&self, url: &str) -> Result<()> {
+        self.run(Some(vec![desktop]))
+    }
 
-    bmap
+    pub fn open(&self) -> Result<()> {
+        self.run(None)
+    }
+
+    fn run(&self, args: Option<Vec<&str>>) -> Result<()> {
+        let status = Command::new("dex")
+            .args(args.unwrap_or(vec![]))
+            .stdout(Stdio::null())
+            .expect("Failed to run command");
+
+        if status.success() {
+            Ok(())
+        } else {
+            Err(anyhow!("Command failed"))
+        }
+    }
+
 }
+
+struct Dex;
+
+impl Dex {
+    fn find_desktop(&self, desktop: &str) -> Result<PathBuf> {
+        vec![
+            dirs::data_dir().unwrap().push("applications"), 
+            PathBuf::from(r"/usr/local/share/applications"),
+            PathBuf::from(r"/usr/share/applications")
+        ].iter()
+        .map(|p| p.join(desktop)) // Add in the desktop file
+        .find(|d| path::exists(d))
+        .ok_or(Err(anyhow!("Can't find desktop entry"))
+    }
+
+    pub fn launch(&self, desktop: &str) -> Result
+
+    fn run(&self, args: Option<Vec<&str>>) {
+        let status = Command::new("dex")
+            .args(args.unwrap_or(vec![]))
+            .stdout(Stdio::null())
+            .expect("Failed to run command");
+
+}
+
+impl Launcher for Dex {
+    pub fn launch(&self, desktop: &str) -> Result<PathBuf> {
+        self.run(
 
 #[cfg(test)]
 mod tests {
